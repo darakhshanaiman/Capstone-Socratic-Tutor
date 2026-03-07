@@ -1,0 +1,14 @@
+langchain
+langchain-community
+langchain-pinecone
+langchain-huggingface
+langchain_groq
+pinecone-client
+rank_bm25
+pypdf
+python-dotenv
+sentence-transformers
+docx2txt 
+unstructured 
+python-pptx
+sqlalchemy
