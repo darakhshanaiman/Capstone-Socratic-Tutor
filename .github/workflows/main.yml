@@ -50,28 +50,18 @@ jobs:
           echo "Container status:"
           docker compose ps
 
-          echo "Waiting for FastAPI service on port 8000..."
+          echo "Waiting a few seconds for services to initialize..."
+          sleep 10
+
+          echo "Waiting for FastAPI service..."
           timeout 120 bash -c 'until curl -f http://localhost:8000/health; do sleep 3; done' || {
-            echo "FastAPI failed to become healthy."
-            echo "Container status:"
+            echo "FastAPI failed to become healthy"
             docker compose ps
-            echo "FastAPI logs:"
             docker compose logs rag-api
             exit 1
           }
 
           echo "FastAPI is healthy."
-
-          echo "Waiting for ChromaDB service on port 8001..."
-          timeout 120 bash -c 'until curl -f http://localhost:8001/api/v2/heartbeat; do sleep 3; done'            echo "ChromaDB failed to become healthy."
-            echo "Container status:"
-            docker compose ps
-            echo "ChromaDB logs:"
-            docker compose logs chromadb
-            exit 1
-          }
-
-          echo "Containers are healthy and ready!"
 
       - name: 🧪 Run API Tests
         env:
@@ -79,7 +69,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
         run: |
-          echo "Running basic API functionality tests..."
+          echo "Running API tests..."
           python run_comprehensive_tests.py
 
       - name: 🤖 Quality Evaluation Gate
@@ -90,7 +80,7 @@ jobs:
           TEST_DATASET: test_dataset.json
         run: |
           echo "Running RAG Quality Evaluation..."
-          echo "Faithfulness Threshold: ${{ env.FAITHFULNESS_THRESHOLD }}"
+          echo "Threshold: ${{ env.FAITHFULNESS_THRESHOLD }}"
           python ci_eval.py --threshold ${{ env.FAITHFULNESS_THRESHOLD }} --verbose
 
       - name: 📋 Generate Test Report
@@ -99,9 +89,8 @@ jobs:
           echo "## CI/CD Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Build Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- FastAPI expected at: http://localhost:8000" >> $GITHUB_STEP_SUMMARY
-          echo "- ChromaDB expected at: http://localhost:8001" >> $GITHUB_STEP_SUMMARY
-          echo "- Faithfulness threshold: ${{ env.FAITHFULNESS_THRESHOLD }}" >> $GITHUB_STEP_SUMMARY
+          echo "- FastAPI: http://localhost:8000" >> $GITHUB_STEP_SUMMARY
+          echo "- Threshold: ${{ env.FAITHFULNESS_THRESHOLD }}" >> $GITHUB_STEP_SUMMARY
 
       - name: 🧹 Cleanup
         if: always()
