@@ -43,7 +43,7 @@ jobs:
         echo "Starting containers..."
         docker compose up -d
         echo "Waiting for services to be healthy..."
-        timeout 60 bash -c 'until curl -f http://localhost:8000/health; do sleep 2; done'
+        timeout 60 bash -c 'until curl -f http://localhost:8001/health; do sleep 2; done'
         timeout 60 bash -c 'until curl -f http://localhost:8001/api/v1/heartbeat; do sleep 2; done'
         echo "Containers are healthy and ready!"
 
@@ -55,7 +55,7 @@ jobs:
     - name: 🤖 Quality Evaluation Gate
       env:
         GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        API_BASE_URL: http://localhost:8000
+        API_BASE_URL: http://localhost:8001
         TEST_DATASET: test_dataset.json
       run: |
         echo "🔍 Running RAG Quality Evaluation..."
