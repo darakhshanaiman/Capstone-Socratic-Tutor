@@ -1,0 +1,84 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables (contains API keys)
+.env
+
+# Git repository
+.git/
+.gitignore
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+
+# Documentation and screenshots
+docs/
+screenshots/
+*.md
+!README.md
+
+# Test files and results
+test_*.py
+*_test.py
+api_test_results.txt
+bottleneck_analysis.txt
+observability_link.txt
+run_audit.py
+run_comprehensive_tests.py
+test_dataset.json
+
+# Node modules (if any)
+node_modules/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker files (don't include in build)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+docker_build.log
+
+# Build artifacts
+dist/
+build/
+
+# Jupyter notebooks (if any)
+*.ipynb
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# Development scripts
+start.bat
+start.ps1

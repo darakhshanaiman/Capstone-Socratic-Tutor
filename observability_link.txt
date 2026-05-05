@@ -1,0 +1,151 @@
+LANGSMITH OBSERVABILITY LINK
+=============================
+
+Project Name: rag-pipeline-audit
+Status: Ready for Integration
+
+To connect your RAG Pipeline to LangSmith:
+
+1. Get Your API Key
+   ─────────────────
+   Visit: https://smith.langchain.com
+   Sign up for free account
+   Navigate to: Settings → API Keys
+   Copy your API key
+
+2. Set Environment Variables
+   ──────────────────────────
+   export LANGSMITH_API_KEY="<paste-your-key>"
+   export LANGSMITH_PROJECT="rag-pipeline-audit"
+
+3. Run the Application with Tracing
+   ─────────────────────────────────
+   # Ensure environment variables are set
+   export LANGSMITH_API_KEY="your-api-key"
+   
+   # Run the audit
+   python run_audit.py
+   
+   # Or run the API server
+   python api.py
+
+4. View Traces
+   ────────────
+   Your traces will automatically appear at:
+   https://smith.langchain.com/projects/rag-pipeline-audit
+   
+   Each request will show:
+   - Node execution timeline
+   - Token usage per LLM call
+   - Cache performance
+   - Error traces
+
+5. Expected Trace Structure
+   ─────────────────────────
+   
+   Query → Tutor Node
+         → [CONDITIONAL] Routing decision
+         → Hybrid Search Node
+         → [LLM] LLaMA Inference
+         → Router Decision
+         → Final Response
+   
+   OR (for evaluation queries)
+   
+   Query → Tutor Node
+         → Transfer to Evaluator
+         → Evaluator Node
+         → [INTERRUPT] Human-in-the-Loop
+         → Tool Execution (Grading)
+         → Response
+
+6. Key Metrics to Track
+   ──────────────────────
+   - Total Chain Duration: Should be <2s for most queries
+   - Hybrid Search Duration: Target <0.6s
+   - LLM Latency: Typically 0.9-1.2s
+   - Cache Hit Rate: Target >60% for repeated queries
+
+7. Create Public Link (Optional)
+   ──────────────────────────────
+   In LangSmith Dashboard:
+   → Projects → rag-pipeline-audit
+   → Click "Share"
+   → Select "Public Link"
+   → Share the URL
+
+   Example format: https://smith.langchain.com/public/project/...
+
+
+EXAMPLE TRACE OUTPUT
+====================
+
+When you run queries with LangSmith enabled, you'll see traces like:
+
+[Trace: Query "What are the four stages?"]
+├─ Tutor Node (50ms)
+│  ├─ Message routing (5ms)
+│  └─ LLM decision (45ms)
+├─ Hybrid Search (850ms)
+│  ├─ Embedding generation (380ms)
+│  ├─ Vector search (250ms)
+│  ├─ BM25 ranking (150ms)
+│  └─ Results merge (70ms)
+├─ LLM Inference (1100ms)
+│  ├─ Token generation (950ms)
+│  ├─ Context window (100ms)
+│  └─ Response formatting (50ms)
+└─ Total: 2000ms
+
+
+TESTING TRACES
+==============
+
+To test trace integration, run:
+
+```bash
+export LANGSMITH_API_KEY="your-key"
+python -c "
+from multi_agent_graph import app
+from langchain_core.messages import HumanMessage
+config = {'configurable': {'thread_id': 'trace_test'}}
+result = app.invoke({'messages': [HumanMessage(content='What is data engineering?')]}, config)
+print('✅ Trace sent to LangSmith')
+"
+```
+
+Then check: https://smith.langchain.com/projects
+
+
+TROUBLESHOOTING
+===============
+
+If traces don't appear:
+
+1. Verify API key is set:
+   echo $LANGSMITH_API_KEY
+
+2. Check LangSmith is installed:
+   pip list | grep langsmith
+
+3. Ensure environment variables are exported (not just set in Python):
+   export LANGSMITH_API_KEY="..."
+   export LANGSMITH_PROJECT="rag-pipeline-audit"
+
+4. Check firewall/proxy settings (LangSmith uses HTTPS)
+
+5. Look for errors in stdout/stderr
+
+
+NEXT STEPS
+==========
+
+1. Get LangSmith API key from https://smith.langchain.com
+2. Set environment variables
+3. Run: python run_audit.py
+4. Monitor at: https://smith.langchain.com/projects
+5. Analyze bottlenecks (see bottleneck_analysis.txt)
+6. Implement performance improvements
+
+
+For more info: https://docs.smith.langchain.com

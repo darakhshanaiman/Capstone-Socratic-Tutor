@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # FastAPI RAG Pipeline Application
+  rag-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - VECTOR_DB_TYPE=chromadb
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+    depends_on:
+      - chromadb
+    networks:
+      - rag-network
+    volumes:
+      - ./checkpoint_db.sqlite:/app/checkpoint_db.sqlite
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ChromaDB Vector Database
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    networks:
+      - rag-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Optional: Streamlit UI (uncomment to enable)
+  # streamlit-ui:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.streamlit
+  #   ports:
+  #     - "8501:8501"
+  #   environment:
+  #     - API_URL=http://rag-api:8000
+  #   depends_on:
+  #     - rag-api
+  #   networks:
+  #     - rag-network
+  #   restart: unless-stopped
+
+volumes:
+  chroma-data:
+    driver: local
+
+networks:
+  rag-network:
+    driver: bridge

@@ -1,3 +1,4 @@
+langgraph
 langchain
 langchain-community
 langchain-pinecone
@@ -12,3 +13,15 @@ docx2txt
 unstructured 
 python-pptx
 sqlalchemy
+langgraph-checkpoint-sqlite
+deepeval
+fastapi
+uvicorn[standard]
+pydantic
+aiofiles
+httpx
+python-multipart
+redis
+streamlit
+requests
+chromadb
