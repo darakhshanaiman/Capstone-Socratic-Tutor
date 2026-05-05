@@ -15,80 +15,76 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 📥 Checkout Code
-      uses: actions/checkout@v4
+      - name: 📥 Checkout Code
+        uses: actions/checkout@v4
 
-    - name: 🐍 Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ env.PYTHON_VERSION }}
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: 📦 Cache Dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+      - name: 📦 Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
-    - name: 🔧 Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: 🔧 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: 🐳 Build Docker Containers
-      run: |
-        echo "Building Docker containers..."
-        docker compose build --no-cache
-        echo "Starting containers..."
-        docker compose up -d
-        echo "Waiting for services to be healthy..."
-        timeout 60 bash -c 'until curl -f http://localhost:8001/health; do sleep 2; done'
-        timeout 60 bash -c 'until curl -f http://localhost:8001/api/v1/heartbeat; do sleep 2; done'
-        echo "Containers are healthy and ready!"
+      - name: 🐳 Build Docker Containers
+        run: |
+          echo "Building Docker containers..."
+          docker compose build --no-cache
 
-    - name: 🧪 Run API Tests
-      run: |
-        echo "Running basic API functionality tests..."
-        python run_comprehensive_tests.py
+          echo "Starting containers..."
+          docker compose up -d
 
-    - name: 🤖 Quality Evaluation Gate
-      env:
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        API_BASE_URL: http://localhost:8001
-        TEST_DATASET: test_dataset.json
-      run: |
-        echo "🔍 Running RAG Quality Evaluation..."
-        echo "📊 Faithfulness Threshold: ${{ env.FAITHFULNESS_THRESHOLD }}"
-        echo ""
+          echo "Waiting for FastAPI service..."
+          timeout 60 bash -c 'until curl -f http://localhost:8000/health; do sleep 2; done'
 
-        # Run the evaluation script
-        python ci_eval.py --threshold ${{ env.FAITHFULNESS_THRESHOLD }} --verbose
+          echo "Waiting for ChromaDB service..."
+          timeout 60 bash -c 'until curl -f http://localhost:8001/api/v1/heartbeat; do sleep 2; done'
 
-    - name: 📋 Generate Test Report
-      if: always()
-      run: |
-        echo "## 🧪 CI/CD Test Results" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Build Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Docker containers built successfully" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ API endpoints responding" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Quality evaluation completed" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Quality Metrics" >> $GITHUB_STEP_SUMMARY
-        echo "- **Faithfulness Threshold:** ${{ env.FAITHFULNESS_THRESHOLD }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Evaluation Script:** ci_eval.py" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-        if [ "${{ job.status }}" == "success" ]; then
-          echo "🎉 **PASSED:** Agent meets quality standards and is ready for deployment!" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "💥 **FAILED:** Agent quality below threshold. Please review and improve before deployment." >> $GITHUB_STEP_SUMMARY
-        fi
+          echo "Containers are healthy and ready!"
 
-    - name: 🧹 Cleanup
-      if: always()
-      run: |
-        echo "Cleaning up containers..."
-        docker compose down -v
-        docker system prune -f
+      - name: 🧪 Run API Tests
+        run: |
+          echo "Running basic API functionality tests..."
+          python run_comprehensive_tests.py
+
+      - name: 🤖 Quality Evaluation Gate
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+          API_BASE_URL: http://localhost:8000
+          TEST_DATASET: test_dataset.json
+        run: |
+          echo "🔍 Running RAG Quality Evaluation..."
+          echo "📊 Faithfulness Threshold: ${{ env.FAITHFULNESS_THRESHOLD }}"
+          python ci_eval.py --threshold ${{ env.FAITHFULNESS_THRESHOLD }} --verbose
+
+      - name: 📋 Generate Test Report
+        if: always()
+        run: |
+          echo "## 🧪 CI/CD Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker containers built" >> $GITHUB_STEP_SUMMARY
+          echo "- API health check completed" >> $GITHUB_STEP_SUMMARY
+          echo "- Quality evaluation attempted" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quality Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "- **Faithfulness Threshold:** ${{ env.FAITHFULNESS_THRESHOLD }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Evaluation Script:** ci_eval.py" >> $GITHUB_STEP_SUMMARY
+
+      - name: 🧹 Cleanup
+        if: always()
+        run: |
+          echo "Cleaning up containers..."
+          docker compose down -v
+          docker system prune -f

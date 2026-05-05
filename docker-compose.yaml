@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # FastAPI RAG Pipeline Application
   rag-api:
     build:
       context: .
@@ -10,6 +9,7 @@ services:
       - "8000:8000"
     environment:
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
       - VECTOR_DB_TYPE=chromadb
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
@@ -27,7 +27,6 @@ services:
       retries: 3
       start_period: 40s
 
-  # ChromaDB Vector Database
   chromadb:
     image: chromadb/chroma:latest
     ports:
@@ -43,21 +42,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-
-  # Optional: Streamlit UI (uncomment to enable)
-  # streamlit-ui:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.streamlit
-  #   ports:
-  #     - "8501:8501"
-  #   environment:
-  #     - API_URL=http://rag-api:8000
-  #   depends_on:
-  #     - rag-api
-  #   networks:
-  #     - rag-network
-  #   restart: unless-stopped
 
 volumes:
   chroma-data:
