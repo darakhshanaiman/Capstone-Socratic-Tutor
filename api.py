@@ -400,7 +400,9 @@ async def stream(request: ChatRequest):
             "X-Accel-Buffering": "no",
         },
     )
-
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 @app.get("/threads/{thread_id}")
 async def get_thread_state(thread_id: str):
