@@ -18,7 +18,7 @@ services:
     networks:
       - rag-network
     volumes:
-      - ./checkpoint_db.sqlite:/app/checkpoint_db.sqlite
+       - checkpoint-data:/app
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -45,6 +45,8 @@ services:
 
 volumes:
   chroma-data:
+    driver: local
+  checkpoint-data:
     driver: local
 
 networks:

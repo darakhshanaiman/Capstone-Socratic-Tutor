@@ -8,8 +8,3 @@ __pycache__/
 # Ignore your Virtual Environment (assuming you named it 'env')
 env/
 venv/
-
-# Ignore your course PDFs (GitHub has file size limits)
-*.pdf
-*.docx
-*.pptx
