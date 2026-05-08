@@ -120,8 +120,7 @@ class RAGEvaluator:
         try:
             evaluation_results = evaluate(
                 test_cases=test_cases,
-                metrics=[faithfulness_metric, relevancy_metric],
-                print_results=True
+                metrics=[faithfulness_metric, relevancy_metric]
             )
 
             # Calculate aggregate scores
