@@ -96,5 +96,5 @@ jobs:
         if: always()
         run: |
           echo "Cleaning up containers..."
-          docker compose down -v
+          docker compose down
           docker system prune -f
