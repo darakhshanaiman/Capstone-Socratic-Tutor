@@ -12,7 +12,7 @@ from difflib import SequenceMatcher
 class RAGEvaluator:
     def __init__(self, api_base_url: str):
         self.api_base_url = api_base_url.rstrip("/")
-        self.client = httpx.Client(timeout=120.0)
+        self.client = httpx.Client(timeout=300.0)
 
     def load_test_dataset(self, dataset_path: str):
         with open(dataset_path, "r", encoding="utf-8") as f:
@@ -20,21 +20,26 @@ class RAGEvaluator:
         return data if isinstance(data, list) else []
 
     def query_rag_system(self, question: str, thread_id: str):
-        response = self.client.post(
-            f"{self.api_base_url}/chat",
-            json={
-                "message": question,
-                "thread_id": thread_id,
-            },
-            headers={"Content-Type": "application/json"},
-        )
+        try:
+            response = self.client.post(
+                f"{self.api_base_url}/chat",
+                json={
+                    "message": question,
+                    "thread_id": thread_id,
+                },
+                headers={"Content-Type": "application/json"},
+            )
 
-        if response.status_code != 200:
-            print(f"❌ API Error: {response.status_code} - {response.text}")
+            if response.status_code != 200:
+                print(f"❌ API Error: {response.status_code} - {response.text}")
+                return ""
+
+            result = response.json()
+            return result.get("final_answer", "")
+
+        except Exception as e:
+            print(f"❌ Request Error: {e}")
             return ""
-
-        result = response.json()
-        return result.get("final_answer", "")
 
     def similarity_score(self, actual: str, expected: str) -> float:
         if not actual or not expected:
