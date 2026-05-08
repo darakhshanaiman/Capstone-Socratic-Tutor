@@ -20,7 +20,7 @@ load_dotenv()
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
-llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.0, api_key=os.environ.get("GROQ_API_KEY"))
+llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.0, api_key=os.environ.get("GROQ_API_KEY"))
 
 @tool
 def transfer_to_evaluator():

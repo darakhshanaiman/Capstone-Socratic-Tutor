@@ -24,7 +24,7 @@ os.environ.setdefault("LANGSMITH_PROJECT", "rag-pipeline-audit")
 DATASET_PATH = "test_dataset.json"
 REPORT_PATH = "evaluation_report.md"
 
-JUDGE_MODEL = "gpt-4-turbo"
+JUDGE_MODEL = "gpt-4o-mini"
 THRESHOLD = 0.7
 
 
