@@ -1,0 +1,56 @@
+[
+    {
+        "user_input": "What are the four stages of Data Engineering?",
+        "agent_response": "Data engineering typically involves ingestion, processing, storage, and access.",
+        "feedback": "Good",
+        "timestamp": "2026-05-09T12:00:00.000000"
+    },
+    {
+        "user_input": "Explain Apache Kafka in simple terms.",
+        "agent_response": "Apache Kafka is a distributed event streaming platform used for high-performance data pipelines.",
+        "feedback": "Good",
+        "timestamp": "2026-05-09T12:05:00.000000"
+    },
+    {
+        "user_input": "How to deploy Spark on Kubernetes?",
+        "agent_response": "I'm sorry, I don't have information on deploying Spark on Kubernetes in the provided materials.",
+        "feedback": "Bad",
+        "timestamp": "2026-05-09T12:10:00.000000"
+    },
+    {
+        "user_input": "How to deploy Spark on Kubernetes?",
+        "agent_response": "Spark on Kubernetes can be run via spark-submit, but my knowledge is limited on the exact YAML configurations.",
+        "feedback": "Bad",
+        "timestamp": "2026-05-09T12:15:00.000000"
+    },
+    {
+        "user_input": "What is the capital of France?",
+        "agent_response": "The capital of France is Paris.",
+        "feedback": "Bad",
+        "timestamp": "2026-05-09T12:20:00.000000"
+    },
+    {
+        "user_input": "what is data engineering?\n",
+        "agent_response": "I'm having a bit of trouble accessing my textbooks right now. Could you please try rephrasing your question or selecting the subject again?",
+        "feedback": "Bad",
+        "timestamp": "2026-05-09T16:12:23.881013"
+    },
+    {
+        "user_input": "what are four stages of data enginnering",
+        "agent_response": "",
+        "feedback": "Bad",
+        "timestamp": "2026-05-10T14:31:28.076680"
+    },
+    {
+        "user_input": "what are the four stages of data engineering?",
+        "agent_response": "Data engineering is the process of designing, building, and maintaining the architecture that stores and processes data. The data engineering lifecycle comprises stages that turn raw data ingredients into a useful end product, ready for consumption by analysts, data scientists, ML engineers, and others. \n\nThe four stages of data engineering are: \n1. Ingestion: This stage involves collecting and transporting data from various sources to a centralized location for processing and storage. \n2. Storage: This stage involves storing the ingested data in a scalable and secure manner, ensuring that it is easily accessible for analysis and processing. \n3. Transformation: This stage involves cleaning, processing, and transforming the stored data into a format that is suitable for analysis and consumption by downstream systems. \n4. Serving: This stage involves making the transformed data available to analysts, data scientists, ML engineers, and other stakeholders in a format that is easily consumable and actionable.\n\nWhat is the primary focus of the ingestion stage in data engineering?",
+        "feedback": "Good",
+        "timestamp": "2026-05-10T15:24:10.591983"
+    },
+    {
+        "user_input": "what are the names of four stages of data engineering?",
+        "agent_response": "The four stages of the data engineering lifecycle are not specified in the provided text. However, the data engineering lifecycle is mentioned to comprise stages that turn raw data ingredients into a useful end product. \n\nWhat are the typical steps involved in the data engineering lifecycle?",
+        "feedback": "Bad",
+        "timestamp": "2026-05-10T15:35:07.256579"
+    }
+]

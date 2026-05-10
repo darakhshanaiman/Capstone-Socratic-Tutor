@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import sqlite3
 import asyncio
 import time
@@ -8,7 +9,7 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, HTTPException, File, UploadFile
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core.messages import HumanMessage
@@ -43,6 +44,24 @@ embeddings_model = None
 # Global checkpointer and database connection
 db_connection = None
 checkpointer = None
+
+def is_unsafe(message: str) -> bool:
+    """
+    Layer 2 Procedural Guardrail:
+    Scans for direct attempts to manipulate the grading system.
+    """
+    blocked_patterns = [
+        r"\bupdate_mastery_state\b",
+        r"\bgive me a point\b",
+        r"\bchange my grade\b",
+        r"\bincrease my score\b",
+        r"\bset my score to\b",
+        r"\bgrant me mastery\b"
+    ]
+    for pattern in blocked_patterns:
+        if re.search(pattern, message, re.IGNORECASE):
+            return True
+    return False
 
 
 @asynccontextmanager
@@ -127,7 +146,7 @@ async def health_check():
 
 
 @app.post("/ingest")
-async def ingest_files(files: list[UploadFile] = File(...)):
+async def ingest_files(subject: str = Form(...), files: list[UploadFile] = File(...)):
     """
     Upload and embed course materials into Pinecone vector database.
 
@@ -135,6 +154,7 @@ async def ingest_files(files: list[UploadFile] = File(...)):
     Splits documents into chunks.
     Embeds chunks using HuggingFace embeddings.
     Stores chunks in Pinecone for RAG retrieval.
+    Also saves files locally in the subject folder.
     """
     if not pinecone_client or not embeddings_model:
         raise HTTPException(
@@ -163,19 +183,24 @@ async def ingest_files(files: list[UploadFile] = File(...)):
                     print(f"⚠️ Unsupported file type skipped: {file.filename}")
                     continue
 
-                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_ext}") as tmp_file:
-                    tmp_file.write(file_content)
-                    tmp_path = tmp_file.name
+                # Save file to permanent subject folder
+                subject_folder = os.path.join("the course content", subject)
+                if not os.path.exists(subject_folder):
+                    os.makedirs(subject_folder)
+                
+                permanent_path = os.path.join(subject_folder, file.filename)
+                with open(permanent_path, "wb") as f:
+                    f.write(file_content)
 
                 try:
                     if file_ext == "pdf":
-                        loader = PyPDFLoader(tmp_path)
+                        loader = PyPDFLoader(permanent_path)
                     elif file_ext == "docx":
-                        loader = Docx2txtLoader(tmp_path)
+                        loader = Docx2txtLoader(permanent_path)
                     elif file_ext == "txt":
-                        loader = TextLoader(tmp_path)
+                        loader = TextLoader(permanent_path)
                     elif file_ext == "pptx":
-                        loader = UnstructuredPowerPointLoader(tmp_path)
+                        loader = UnstructuredPowerPointLoader(permanent_path)
 
                     docs = loader.load()
 
@@ -186,8 +211,8 @@ async def ingest_files(files: list[UploadFile] = File(...)):
                     else:
                         print(f"⚠️ No content extracted from {file.filename}")
 
-                finally:
-                    os.unlink(tmp_path)
+                except Exception as loader_e:
+                    print(f"Error loading {file.filename}: {loader_e}")
 
             except Exception as e:
                 print(f"❌ Error processing {file.filename}: {str(e)}")
@@ -209,12 +234,15 @@ async def ingest_files(files: list[UploadFile] = File(...)):
         splits = splitter.split_documents(all_docs)
 
         print(f"📊 Created {len(splits)} chunks from {len(all_docs)} document part(s).")
-        print("🔍 Embedding and storing in Pinecone index...")
+        print(f"🔍 Refreshing knowledge for subject: {subject}")
+        index = pinecone_client.Index(PINECONE_INDEX_NAME)
+        index.delete(delete_all=True, namespace=subject)
 
         PineconeVectorStore.from_documents(
             documents=splits,
             embedding=embeddings_model,
             index_name=PINECONE_INDEX_NAME,
+            namespace=subject
         )
 
         print(f"✅ Successfully indexed {len(splits)} chunks.")
@@ -250,6 +278,17 @@ async def chat(request: ChatRequest):
     Uses thread_id for multi-turn conversation persistence.
     """
     try:
+        # Step 1: Input Interception (Layer 2 Guardrail)
+        if is_unsafe(request.message):
+            print(f"🛑 [Procedural Guardrail] Blocked unsafe request: {request.message}")
+            return ChatResponse(
+                thread_id=request.thread_id,
+                status="blocked",
+                final_answer="⚠️ [Security Warning] Your request contains restricted commands or attempts to bypass grading policies. This action has been logged.",
+                node_executed="guardrail",
+                messages_count=0,
+            )
+
         config = {"configurable": {"thread_id": request.thread_id}}
         input_data = {"messages": [HumanMessage(content=request.message)]}
 
@@ -259,26 +298,45 @@ async def chat(request: ChatRequest):
         if not messages:
             raise HTTPException(status_code=500, detail="No response from agent.")
 
-        final_message = messages[-1]
+        # --- SMART RESPONSE EXTRACTION ---
+        # Walk backwards to find the last AIMessage that has actual text content.
+        # ToolMessages contain raw RAG chunks — we must skip them.
+        from langchain_core.messages import AIMessage as LCAIMessage, ToolMessage
+        final_answer = ""
+        node_executed = "tutor"
+        
+        for msg in reversed(messages):
+            # Only consider real AI text responses
+            if isinstance(msg, ToolMessage):
+                continue
+            if not isinstance(msg, LCAIMessage):
+                continue
+            content = msg.content or ""
+            # Skip tool-call-only messages (no visible text)
+            if not content or content.startswith("Successfully handed over"):
+                continue
+            # Clean any internal thinking tags
+            final_answer = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+            if "mastery" in final_answer.lower() or "point" in final_answer.lower():
+                node_executed = "evaluator"
+            break
 
-        final_answer = (
-            final_message.content
-            if hasattr(final_message, "content")
-            else str(final_message)
-        )
+        # Handle HITL interrupt: evaluator is paused waiting for human approval
+        if not final_answer:
+            state = graph_app.get_state(config)
+            if state and state.next == ("evaluator_tools",):
+                final_answer = "✅ Your answer has been reviewed! A grade update is pending admin approval in the terminal."
+                node_executed = "evaluator_interrupt"
+            else:
+                final_answer = "I processed your request but couldn't generate a text response. Please try again."
 
-        final_answer = re.sub(
-            r"<think>.*?</think>",
-            "",
-            final_answer,
-            flags=re.DOTALL,
-        ).strip()
+        print(f"📤 [API] Sending response ({node_executed}): {final_answer[:100]}...")
 
         return ChatResponse(
             thread_id=request.thread_id,
             status="completed",
             final_answer=final_answer,
-            node_executed="tutor",
+            node_executed=node_executed,
             messages_count=len(messages),
         )
 
@@ -325,6 +383,12 @@ async def stream(request: ChatRequest):
 
     async def event_generator() -> AsyncGenerator[str, None]:
         try:
+            # Step 1: Input Interception (Layer 2 Guardrail)
+            if is_unsafe(request.message):
+                print(f"🛑 [Procedural Guardrail] Blocked unsafe streaming request: {request.message}")
+                yield f"data: {json.dumps({'event': 'error', 'content': '⚠️ [Security Warning] Restricted grading commands detected. Your message was blocked to ensure system integrity.'})}\n\n"
+                return
+
             config = {"configurable": {"thread_id": request.thread_id}}
             input_data = {"messages": [HumanMessage(content=request.message)]}
 
@@ -400,6 +464,72 @@ async def stream(request: ChatRequest):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@app.get("/check_pending/{thread_id}")
+async def check_pending_grade(thread_id: str):
+    """Check if a thread is paused waiting for grade approval (HITL interrupt)."""
+    try:
+        config = {"configurable": {"thread_id": thread_id}}
+        state = graph_app.get_state(config)
+        is_pending = state and state.next == ("evaluator_tools",)
+        
+        pending_info = {}
+        if is_pending:
+            # Extract pending grade info from the last evaluator message
+            messages = state.values.get("messages", [])
+            for msg in reversed(messages):
+                if hasattr(msg, "tool_calls") and msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        if tc.get("name") == "update_mastery_state":
+                            pending_info = tc.get("args", {})
+                            break
+                    if pending_info:
+                        break
+        
+        return {"pending": bool(is_pending), "details": pending_info}
+    except Exception as e:
+        return {"pending": False, "error": str(e)}
+
+
+@app.post("/approve_grade")
+async def approve_grade(thread_id: str = Form(...), approved: str = Form(...)):
+    """
+    Resume the graph after a HITL interrupt.
+    approved = 'yes' to award the grade, 'no' to reject it.
+    This is the web-based equivalent of typing Y/N in the terminal.
+    """
+    try:
+        config = {"configurable": {"thread_id": thread_id}}
+        state = graph_app.get_state(config)
+        
+        if not state or state.next != ("evaluator_tools",):
+            return {"status": "no_pending", "message": "No grade update is pending for this session."}
+        
+        if approved.lower() in ("yes", "y"):
+            # Resume the graph — this executes the update_mastery_state tool
+            print(f"✅ [HITL] Grade approved for thread {thread_id}. Resuming graph...")
+            output = graph_app.invoke(None, config=config)
+            messages = output.get("messages", [])
+            # Find the tool result to confirm the score
+            for msg in reversed(messages):
+                if hasattr(msg, "content") and msg.content and "mastery" in msg.content.lower():
+                    return {"status": "approved", "message": msg.content}
+            return {"status": "approved", "message": "Grade has been updated successfully! ✅"}
+        else:
+            # Reject: update the graph state to skip the tool
+            print(f"❌ [HITL] Grade rejected for thread {thread_id}.")
+            # We update the state to remove the pending tool call
+            graph_app.update_state(
+                config,
+                {"messages": [AIMessage(content="The grade update was rejected by the administrator.")]},
+                as_node="evaluator"
+            )
+            return {"status": "rejected", "message": "Grade update was rejected. No changes made."}
+    
+    except Exception as e:
+        print(f"❌ [HITL Error] {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing grade approval: {str(e)}")
 
 @app.get("/threads/{thread_id}")
 async def get_thread_state(thread_id: str):

@@ -17,7 +17,7 @@ class AgentState(TypedDict):
 
 # --- 2. Setup the Smarter LLM and Bind Tools ---
 llm = ChatGroq(
-    model="llama-3.1-8b-instant", # The upgraded 70B model
+    model="llama-3.3-70b-versatile", # The upgraded 70B model
     temperature=0.0,
     api_key=os.environ.get("GROQ_API_KEY")
 )

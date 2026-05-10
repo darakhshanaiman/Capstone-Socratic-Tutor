@@ -1,3 +1,4 @@
+import os
 from typing import Union
 
 from langchain_core.tools import tool
@@ -7,11 +8,23 @@ from hybrid_search import setup_hybrid_retriever
 
 # --- 1. The Retrieval Tool ---
 @tool
-def retrieve_concept_definition(query: str):
-    """Use this tool to search the curriculum for definitions and concepts."""
-    retriever = setup_hybrid_retriever()
+def retrieve_concept_definition(query: str, course_name: str):
+    """Retrieve educational content from the specific course folder."""
+    if not course_name:
+        # Fallback if AI somehow fails despite being required
+        base_folder = "the course content"
+        if os.path.exists(base_folder):
+            subjects = [f.name for f in os.scandir(base_folder) if f.is_dir()]
+            if subjects:
+                course_name = subjects[0]
+    
+    print(f"🔍 [Tool Search] Course: '{course_name}' | Query: '{query}'")
+    retriever = setup_hybrid_retriever(course_name)
     results = retriever.invoke(query)
-    return "\n\n".join([doc.page_content for doc in results])
+    
+    context = "\n\n".join([doc.page_content for doc in results])
+    print(f"✅ [Tool Search] Found {len(results)} relevant chunks.")
+    return context if context else "No relevant information found in the curriculum."
 
 
 # --- 2. The Gradebook Database ---
